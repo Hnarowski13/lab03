@@ -19,7 +19,7 @@ int main(int argc, char* argv[]) {
   URL* playlistUrl = NULL;
   HTTPRequest* request = NULL;
   char* filename = NULL;
-  HTTPResponse response = NULL;
+  HTTPResponse* response = NULL;
   if (!parseArgs(argc, argv, &playlistUrlStr)) {
     return 1;
   }
@@ -57,15 +57,7 @@ TCPSocket clientSock;
     helpMessage(argv[0], std::cout);
     exit(1);
   }            
-  
-  // Attempt to download the playlist through HTTP, as if the playlist is an
-  // base HTML file
-  // Note:
-  //  - Handle 404 Not found and 403 Forbidden are required
-  if (playlistUrl == NULL) {
-      // response(404);
-      // return false;
-  } 
+
 
     try {
       clientSock.Connect(*playlistUrl);  // Connect to the target server.
@@ -76,7 +68,102 @@ TCPSocket clientSock;
                 << playlistUrl->getHost() << std::endl;
       delete playlistUrl;
       exit(1);
+
     }  
+
+  /***SEND THE REQUEST TO THE SERVER***/
+  // Send a GET request for the specified file.
+  // No matter connecting to the server or the proxy, the request is
+  // alwasy destined to the server.
+  request = HTTPRequest::createGetRequest(playlistUrl->getPath());
+  request->setHost(playlistUrl->getHost());
+  // set this request to non-persistent.
+  request->setHeaderField("Connection", "close");
+  // For real browsers, If-Modified-Since field is always set.
+  // if the local object is the latest copy, the browser does not
+  // respond the object.
+  request->setHeaderField("If-Modified-Since", "0");
+
+  try {  // send the request to the sock
+    request->send(clientSock);
+  } catch(std::string msg) {  // something is wrong, send failed
+    std::cerr << msg << std::endl;
+    exit(1);
+  }
+
+      // get the request as a std::string
+  std::string printBuffer;
+  request->print(printBuffer);
+
+  // output the request
+  std::cout << "Request sent..." << std::endl;
+  std::cout << "=========================================================="
+            << std::endl;
+  std::cout << printBuffer.substr(0, printBuffer.size() - 4) << std::endl;
+  std::cout << "=========================================================="
+            << std::endl;
+
+  delete request;  // We do not need it anymore
+  /***END OF SENDING REQUEST***/
+
+
+
+
+
+
+  /***RECEIVE RESPONSE HEADER FROM THE SERVER***/
+  // The server response is a stream starts with a header and then
+  // the body/data. A blank line separates the header and the body/data.
+  //
+  // Read enough of the server's response to get all of the headers,
+  // then have that response interpreted so we at least know what
+  // happened.
+  //
+  // We create two std::strings to hold the incoming data. As described in the
+  // hanout, a HTTP message is composed of two portions, a header and a body.
+  std::string responseHeader, responseBody;
+
+  // The client receives the response stream. Check if the data it has
+  // contains the whole header.
+  // read_header separates the header and data by finding the blank line.
+  try {
+    response->receiveHeader(clientSock, responseHeader, responseBody);
+  } catch (std::string msg) {
+    std::cerr << msg << std::endl;
+  }
+
+  // The HTTPResponse::parse construct a response object. and check if
+  // the response is constructed correctly. Also it tries to determine
+  // if the response is chunked transfer encoding or not.
+  response = HTTPResponse::parse(responseHeader.c_str(),
+                                 responseHeader.length());
+
+  // The response is illegal.
+  if (!response) {
+    std::cerr << "Client: Unable to parse the response header." << std::endl;
+    // clean up if there's something wrong
+    delete response;
+    delete playlistUrl;
+    exit(1);
+  }
+
+  // get the response as a std::string
+  response->print(printBuffer);
+
+  // output the response header
+  std::cout << std::endl << "Response header received" << std::endl;
+  std::cout << "=========================================================="
+            << std::endl;
+  std::cout << printBuffer.substr(0, printBuffer.length() - 4) << std::endl;
+  std::cout << "=========================================================="
+            << std::endl;
+
+
+
+
+
+
+
   // If the download succeeded, try to parse the response body as a Playlist 
   // object using Playlist::parse
 
