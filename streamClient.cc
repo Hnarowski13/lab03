@@ -16,11 +16,14 @@
 
 int main(int argc, char* argv[]) {
   char* playlistUrlStr = NULL;
-
+  URL* playlistUrl = NULL;
+  HTTPRequest* request = NULL;
+  char* filename = NULL;
+  HTTPResponse response = NULL;
   if (!parseArgs(argc, argv, &playlistUrlStr)) {
     return 1;
   }
-
+TCPSocket clientSock;
   // The only difference between video streaming in HLS and the simpleClient
   // is that the simpleClient is reading a video file locally. On the other
   // hand, HLS is getting the video from a playlist that specifies a list of
@@ -39,12 +42,41 @@ int main(int argc, char* argv[]) {
 
   // Parse the playlistUrlStr as a URL object. Just like what we did in
   // lab 2.
+  /***PARSE THE ADDRS RECEIVED TO URL OBJECTS***/
+  // Must have a server to get data from
+  if (!playlistUrlStr) {
+    std::cerr << "You did not specify the host address." << std::endl;
+    helpMessage(argv[0], std::cout);
+    exit(1);
+  }
 
+  playlistUrl = URL::parse(playlistUrlStr);
+  if (!playlistUrl) {  // If URL parsing is failed
+    std::cerr << "Unable to parse host address: " << playlistUrlStr
+              << std::endl;
+    helpMessage(argv[0], std::cout);
+    exit(1);
+  }            
+  
   // Attempt to download the playlist through HTTP, as if the playlist is an
   // base HTML file
   // Note:
   //  - Handle 404 Not found and 403 Forbidden are required
+  if (playlistUrl == NULL) {
+      // response(404);
+      // return false;
+  } 
 
+    try {
+      clientSock.Connect(*playlistUrl);  // Connect to the target server.
+    } catch(std::string msg) {
+      // Give up if sock is not created correctly.
+      std::cerr << msg << std::endl;
+      std::cerr << "Unable to connect to server: "
+                << playlistUrl->getHost() << std::endl;
+      delete playlistUrl;
+      exit(1);
+    }  
   // If the download succeeded, try to parse the response body as a Playlist 
   // object using Playlist::parse
 
