@@ -1,0 +1,24 @@
+CLIENT=streamClient
+CLIENT_OBJS= streamClient.o \
+	PlaylistEntry.o \
+	Playlist.o \
+	HTTPMessage.o \
+	HTTPRequest.o \
+	HTTPResponse.o \
+	TCPSocket.o \
+	URL.o
+
+all: $(CLIENT) $(TEST_CLIENT)
+
+%.o : %.cc %.h
+	g++ -c $< $(CXXFLAGS) -o $@ -DBUFFER_SIZE=40960
+
+
+$(CLIENT): $(CLIENT_OBJS)
+	g++ -o $@ $^ $(LDFLAGS)
+
+$(TEST_CLIENT): $(TEST_CLIENT_OBJS)
+	g++ -o $@ $^ $(LDFLAGS)
+
+clean:
+	rm -f $(CLIENT) $(CLIENT_OBJS) $(TEST_CLIENT) $(TEST_CLIENT_OBJS)
