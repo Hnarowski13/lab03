@@ -4,7 +4,7 @@
 #include "HTTPResponse.h"
 #include "Playlist.h"
 #include "URL.h"
-//#include "VideoPlayer.h"
+#include "VideoPlayer.h"
 #include "streamClient.h"
 #include <climits>
 #include <cstdlib>
