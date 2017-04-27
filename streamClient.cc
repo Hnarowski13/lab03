@@ -92,16 +92,16 @@ TCPSocket clientSock;
   }
 
       // get the request as a std::string
-  std::string printBuffer;
-  request->print(printBuffer);
+  // std::string printBuffer;
+  // request->print(printBuffer);
 
   // output the request
-  std::cout << "Request sent..." << std::endl;
-  std::cout << "=========================================================="
-            << std::endl;
-  std::cout << printBuffer.substr(0, printBuffer.size() - 4) << std::endl;
-  std::cout << "=========================================================="
-            << std::endl;
+  // std::cout << "Request sent..." << std::endl;
+  // std::cout << "=========================================================="
+  //           << std::endl;
+  // std::cout << printBuffer.substr(0, printBuffer.size() - 4) << std::endl;
+  // std::cout << "=========================================================="
+  //           << std::endl;
 
   delete request;  // We do not need it anymore
   /***END OF SENDING REQUEST***/
@@ -149,14 +149,23 @@ TCPSocket clientSock;
 
   // get the response as a std::string
   response->print(printBuffer);
+  int status_code = response->getStatusCode();
+  if (status_code == 404)
+  {
+    std::cout << "404 NOT FOUND BISH" << std::endl;
+  }
+  else if (status_code == 403)
+  {
+    std::cout << "403 FORBIDDEN BISH " << std::endl;
+  }
 
   // output the response header
-  std::cout << std::endl << "Response header received" << std::endl;
-  std::cout << "=========================================================="
-            << std::endl;
-  std::cout << printBuffer.substr(0, printBuffer.length() - 4) << std::endl;
-  std::cout << "=========================================================="
-            << std::endl;
+  // std::cout << std::endl << "Response header received" << std::endl;
+  // std::cout << "=========================================================="
+  //           << std::endl;
+  // std::cout << printBuffer.substr(0, printBuffer.length() - 4) << std::endl;
+  // std::cout << "=========================================================="
+  //           << std::endl;
 
 
 
