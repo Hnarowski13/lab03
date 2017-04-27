@@ -108,7 +108,7 @@ TCPSocket clientSock;
   // std::cout << "=========================================================="
   //           << std::endl;
 
-  delete request;  // We do not need it anymore
+  //delete request;  // We do not need it anymore
   /***END OF SENDING REQUEST***/
 
 
@@ -208,11 +208,11 @@ TCPSocket clientSock;
   // Get a video player. Refer to simpleClient.cc for more information
 
   // Make a video player instance to play the video
-  // VideoPlayer* player = VideoPlayer::create();
-  // if (!player) {
-  //   std::cout << "Unable to create video player." << std::endl;
-  //   return 3;
-  // }
+  VideoPlayer* player = VideoPlayer::create();
+  if (!player) {
+    std::cout << "Unable to create video player." << std::endl;
+    return 3;
+  }
 
 
   // For each video segment in the Playlist object, download the video segment
@@ -223,6 +223,8 @@ TCPSocket clientSock;
   unsigned int segments = plist->getNumSegments();
   std::string segmentUrlStr;
   std::string printBuffer;
+  response = NULL;
+  request = NULL;
   // loop through segments
 std::cout << "Playlist has " << segments << " segments."
  << std::endl;
@@ -240,6 +242,21 @@ std::cout << "Playlist has " << segments << " segments."
       helpMessage(argv[0], std::cout);
       exit(1);
     }
+
+
+  std::cout << "Attempting connect to client socket..." << std::endl;
+
+    try {
+      clientSock.Connect(*segmentUrl);  // Connect to the target server.
+    } catch(std::string msg) {
+      // Give up if sock is not created correctly.
+      std::cerr << msg << std::endl;
+      std::cerr << "Unable to connect to server: "
+                << segmentUrl->getHost() << std::endl;
+      delete segmentUrl;
+      exit(1);
+
+    }  
 
     /***SEND THE REQUEST TO THE SERVER***/
     // Send a GET request for the specified file.
@@ -261,7 +278,7 @@ std::cout << "Playlist has " << segments << " segments."
       exit(1);
     }
 
-  delete request;  // We do not need it anymore
+  //delete request;  // We do not need it anymore
   /***END OF SENDING REQUEST***/  
   std::cout << "Attempting to receive response header from downloaded segment..." << std::endl;
     try {
@@ -308,17 +325,30 @@ std::cout << "Playlist has " << segments << " segments."
       delete playlistUrl;
       exit(1);      
     }
-    // if (!player->stream(responseBody))
-    // {
-    //   std::cerr << "Unable to properly download segment" << std::endl;
-    //   delete response;
-    //   delete playlistUrl;
-    //   exit(1);             
-    // }
+    if (!player->stream(responseBody))
+    {
+      std::cerr << "Unable to properly download segment" << std::endl;
+      delete response;
+      delete playlistUrl;
+      exit(1);             
+    }
 
   }
         
+  // The player is playing the video in another thread. The main thread
+  // has to wait until it ends or until the user closes the playback window.
+  player->waitForClose();
 
+  std::cout << std::endl;
+  // wait for the few second before terminating the program
+  for (int i = 5; i > 0; i--) {
+    std::cout << "Player closing in " << i << " seconds." << std::endl;
+    sleep(1);
+  }
+
+  // Clean up.
+  delete player;
+  return 0;
   // Stream the video segment (in the response body) to the player using
   // Player::stream
   // Note:
