@@ -4,7 +4,7 @@
 #include "HTTPResponse.h"
 #include "Playlist.h"
 #include "URL.h"
-//#include "VideoPlayer.h"
+#include "VideoPlayer.h"
 #include "streamClient.h"
 #include <climits>
 #include <cstdlib>
@@ -20,6 +20,7 @@ int main(int argc, char* argv[]) {
   HTTPRequest* request = NULL;
   char* filename = NULL;
   HTTPResponse* response = NULL;
+  Playlist *plist = NULL;
   if (!parseArgs(argc, argv, &playlistUrlStr)) {
     return 1;
   }
@@ -148,7 +149,7 @@ TCPSocket clientSock;
   }
 
   // get the response as a std::string
-  response->print(printBuffer);
+  // response->print(printBuffer);
   int status_code = response->getStatusCode();
   if (status_code == 404)
   {
@@ -176,6 +177,23 @@ TCPSocket clientSock;
   // If the download succeeded, try to parse the response body as a Playlist 
   // object using Playlist::parse
 
+  try {
+    plist = Playlist::parse(responseBody);
+
+  }
+  catch(std::string msg) {  // something is wrong, send failed
+    std::cerr << msg << std::endl;
+    exit(1);
+  }
+
+  if (plist == NULL)
+  {
+    std::cout << "p list is null " << std::endl;
+    delete plist;
+    delete playlistUrl;
+    exit(1);
+  }
+
   // Note:
   //  - remember to delete any object that is no longer needed, for example
   //    we do not need the playlist's URL object now)
@@ -195,7 +213,7 @@ TCPSocket clientSock;
   //  - Make sure Player::stream returns true. (What if a user closes the
   //    VideoPlayer early?)
 
-
+  delete playlistUrl;
   // Because the main thread (this thread) is downloading the video and is very
   // likely to end before the playback, which is handled by another thread.
   // If we let the main thread to terminate, the child thread (VideoPlayer)
