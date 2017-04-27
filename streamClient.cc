@@ -382,14 +382,18 @@ std::cout << "Playlist has " << segments << " segments."
     
     if (!player->stream(fullContent))
     {
-      std::cerr << "Unable to properly play segment" << std::endl;
-      delete response;
-      delete playlistUrl;
-      exit(1);             
+  delete player;
+  delete playlistUrl;
+  delete segmentUrl;
+  exit(1);		
+     // std::cerr << "Unable to properly play segment" << std::endl;
+     // delete response;
+     // delete playlistUrl;
+     // exit(1);             
     }
 
   }
-        
+   std::cout << "Waiting for playback to finish" << std::endl;     
   // The player is playing the video in another thread. The main thread
   // has to wait until it ends or until the user closes the playback window.
   player->waitForClose();
