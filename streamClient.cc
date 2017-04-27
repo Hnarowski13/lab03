@@ -4,7 +4,7 @@
 #include "HTTPResponse.h"
 #include "Playlist.h"
 #include "URL.h"
-#include "VideoPlayer.h"
+//#include "VideoPlayer.h"
 #include "streamClient.h"
 #include <climits>
 #include <cstdlib>
@@ -17,6 +17,7 @@
 int main(int argc, char* argv[]) {
   char* playlistUrlStr = NULL;
   URL* playlistUrl = NULL;
+  URL* segmentUrl = NULL;
   HTTPRequest* request = NULL;
   char* filename = NULL;
   HTTPResponse* response = NULL;
@@ -201,11 +202,84 @@ TCPSocket clientSock;
 
   // Get a video player. Refer to simpleClient.cc for more information
 
+  // Make a video player instance to play the video
+  VideoPlayer* player = VideoPlayer::create();
+  if (!player) {
+    std::cout << "Unable to create video player." << std::endl;
+    return 3;
+  }
+
+
   // For each video segment in the Playlist object, download the video segment
   // as over HTTP, as if the video segments are HTTP reference objects
   // Note:
   //  - Make sure each segment is downloaded successfully. If not, show some
   //    error messages and exit the program is fine.
+  int segments = plist->getNumSegments();
+  std::string segmentUrlStr;
+
+  // loop through segments
+  for (int c = 0; c < segments; c++)
+  {
+    segmentUrlStr = plist->getSegmentUrl(c);
+    segmentUrl = URL::parse(segmentUrlStr);
+    if (!segmentUrl) {  // If URL parsing is failed
+      std::cerr << "Unable to parse segment host address: " << segmentUrlStr
+                << std::endl;
+      helpMessage(argv[0], std::cout);
+      exit(1);
+    }
+
+    /***SEND THE REQUEST TO THE SERVER***/
+    // Send a GET request for the specified file.
+    // No matter connecting to the server or the proxy, the request is
+    // alwasy destined to the server.
+    request = HTTPRequest::createGetRequest(segmentUrl->getPath());
+    request->setHost(segmentUrl->getHost());
+    // set this request to non-persistent.
+    request->setHeaderField("Connection", "close");
+    // For real browsers, If-Modified-Since field is always set.
+    // if the local object is the latest copy, the browser does not
+    // respond the object.
+    request->setHeaderField("If-Modified-Since", "0");
+
+    try {  // send the request to the sock
+      request->send(clientSock);
+    } catch(std::string msg) {  // something is wrong, send failed
+      std::cerr << msg << std::endl;
+      exit(1);
+    }
+
+  delete request;  // We do not need it anymore
+  /***END OF SENDING REQUEST***/  
+  
+    try {
+      response->receiveHeader(clientSock, responseHeader, responseBody);
+    } catch (std::string msg) {
+      std::cerr << msg << std::endl;
+    }
+
+    // The HTTPResponse::parse construct a response object. and check if
+    // the response is constructed correctly. Also it tries to determine
+    // if the response is chunked transfer encoding or not.
+    response = HTTPResponse::parse(responseHeader.c_str(),
+                                   responseHeader.length());
+
+    // The response is illegal.
+    if (!response) {
+      std::cerr << "Client: Unable to parse the response header." << std::endl;
+      // clean up if there's something wrong
+      delete response;
+      delete playlistUrl;
+      exit(1);
+    }
+
+    // get the response as a std::string
+    // response->print(printBuffer);
+    int status_code = response->getStatusCode();    
+
+  }
+        
 
   // Stream the video segment (in the response body) to the player using
   // Player::stream
@@ -214,6 +288,7 @@ TCPSocket clientSock;
   //    VideoPlayer early?)
 
   delete playlistUrl;
+  delete segmentUrl;
   // Because the main thread (this thread) is downloading the video and is very
   // likely to end before the playback, which is handled by another thread.
   // If we let the main thread to terminate, the child thread (VideoPlayer)
