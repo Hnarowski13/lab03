@@ -61,7 +61,7 @@ TCPSocket clientSock;
     exit(1);
   }            
 
-  std::cout << "Attempting connect to client socket..." << std::endl;
+  //std::cout << "Attempting connect to client socket..." << std::endl;
 
     try {
       clientSock.Connect(*playlistUrl);  // Connect to the target server.
@@ -88,7 +88,7 @@ TCPSocket clientSock;
   // respond the object.
   request->setHeaderField("If-Modified-Since", "0");
 
-  std::cout << "Attempting send the request to client socket..." << std::endl;
+  //std::cout << "Attempting send the request to client socket..." << std::endl;
   try {  // send the request to the sock
     request->send(clientSock);
   } catch(std::string msg) {  // something is wrong, send failed
@@ -131,7 +131,7 @@ TCPSocket clientSock;
   // The client receives the response stream. Check if the data it has
   // contains the whole header.
   // read_header separates the header and data by finding the blank line.
-  std::cout << "Attempting to receive the response header " << std::endl;
+  //std::cout << "Attempting to receive the response header " << std::endl;
   try {
     response->receiveHeader(clientSock, responseHeader, responseBody);
   } catch (std::string msg) {
@@ -155,15 +155,28 @@ TCPSocket clientSock;
 
   // get the response as a std::string
   // response->print(printBuffer);
-  std::cout << "Checking status codes..." << std::endl;
+ // std::cout << "Checking status codes..." << std::endl;
   int status_code = response->getStatusCode();
   if (status_code == 404)
   {
-    std::cout << "404 NOT FOUND BISH" << std::endl;
+	  std::cout << "Request failed: " << std::endl;
+    std::cout << "404 NOT FOUND" << std::endl;
+        std::cout << "Aborting download " << std::endl;
+           std::cout << "Unable to download/parse playlist at " << playlistUrlStr<< std::endl;
+        delete response;
+    delete playlistUrl;
+    exit(1);
   }
   else if (status_code == 403)
   {
-    std::cout << "403 FORBIDDEN BISH " << std::endl;
+	    std::cout << "Request failed: " << std::endl;
+    std::cout << "403 FORBIDDEN " << std::endl;
+    std::cout << "Aborting download " << std::endl;
+std::cout << "Unable to download/parse playlist at " << playlistUrlStr<< std::endl;
+    
+        delete response;
+    delete playlistUrl;
+    exit(1);
   }
 
   // output the response header
@@ -182,7 +195,7 @@ TCPSocket clientSock;
 
   // If the download succeeded, try to parse the response body as a Playlist 
   // object using Playlist::parse
-  std::cout << "Attempting to parse playlist object from responseBody" << std::endl;
+ // std::cout << "Attempting to parse playlist object from responseBody" << std::endl;
   try {
     plist = Playlist::parse(responseBody);
 
@@ -228,6 +241,7 @@ TCPSocket clientSock;
   // loop through segments
 std::cout << "Playlist has " << segments << " segments."
  << std::endl;
+ player->start();
   for (unsigned int c = 0; c < plist->getNumSegments(); c++)
   {
     responseBody = "";
@@ -235,7 +249,7 @@ std::cout << "Playlist has " << segments << " segments."
     std::cout << "Fetching segment "<< c+1 << std::endl;
     segmentUrlStr = plist->getSegmentUrl(c);
     segmentUrl = URL::parse(segmentUrlStr);
-    std::cout << "Parsing segment URL: " << segmentUrlStr << std::endl;
+   // std::cout << "Parsing segment URL: " << segmentUrlStr << std::endl;
     if (!segmentUrl) {  // If URL parsing is failed
       std::cerr << "Unable to parse segment host address: " << segmentUrlStr
                 << std::endl;
@@ -244,7 +258,7 @@ std::cout << "Playlist has " << segments << " segments."
     }
 
 
-  std::cout << "Attempting connect to client socket..." << std::endl;
+  //std::cout << "Attempting connect to client socket..." << std::endl;
 
     try {
       clientSock.Connect(*segmentUrl);  // Connect to the target server.
@@ -270,7 +284,7 @@ std::cout << "Playlist has " << segments << " segments."
     // if the local object is the latest copy, the browser does not
     // respond the object.
     request->setHeaderField("If-Modified-Since", "0");
-    std::cout << "Sending segment request to client socket... " << std::endl;
+   // std::cout << "Sending segment request to client socket... " << std::endl;
     try {  // send the request to the sock
       request->send(clientSock);
     } catch(std::string msg) {  // something is wrong, send failed
@@ -280,7 +294,7 @@ std::cout << "Playlist has " << segments << " segments."
 
   //delete request;  // We do not need it anymore
   /***END OF SENDING REQUEST***/  
-  std::cout << "Attempting to receive response header from downloaded segment..." << std::endl;
+  //std::cout << "Attempting to receive response header from downloaded segment..." << std::endl;
     try {
       response->receiveHeader(clientSock, responseHeader, responseBody);
     } catch (std::string msg) {
@@ -306,28 +320,69 @@ std::cout << "Playlist has " << segments << " segments."
       exit(1);
     }
 
-    response->print(printBuffer);
+	
+   // response->print(printBuffer);
 
     // output the response header
-    std::cout << std::endl << "Response header received" << std::endl;
-    std::cout << "=========================================================="
-              << std::endl;
-    std::cout << printBuffer.substr(0, printBuffer.length() - 4) << std::endl;
-    std::cout << "=========================================================="
-              << std::endl;
+  //  std::cout << std::endl << "Response header received" << std::endl;
+  //  std::cout << "=========================================================="
+  //            << std::endl;
+  //  std::cout << printBuffer.substr(0, printBuffer.length() - 4) << std::endl;
+  //  std::cout << "=========================================================="
+   //           << std::endl;
     // get the response as a std::string
     // response->print(printBuffer);
     int status_code = response->getStatusCode();
     if (status_code != 200)
     {
       std::cerr << "Unable to properly download segment" << std::endl;
+      std::cerr << "Status code: " << status_code << std::endl;
       delete response;
       delete playlistUrl;
       exit(1);      
     }
-    if (!player->stream(responseBody))
+    int bytesWritten = 0, bytesLeft;
+    std::string fullContent="";
+    
+    response->setHeaderField("Transfer-encoding", "default");
+  //std::cout << "Default transfer encoding" << std::endl;
+//std::cout << "Content-length: " << response->getContentLen() << std::endl;
+    bytesLeft = response->getContentLen();
+   //  std::cout << "Content String size before: "<<fullContent.length() << std::endl;
+    do {
+      // If we got a piece of the file in our buffer for the headers,
+      // have that piece written out, so we don't lose it.
+      fullContent += responseBody;
+      bytesWritten += responseBody.length();
+      bytesLeft -= responseBody.length();
+
+    //  std::cout << "bytes written:" <<  bytesWritten << std::endl;
+    //  std::cout << "data gotten:" <<  responseBody.length() << std::endl;
+
+      responseBody.clear();
+      try {
+        // Keeps receiving until it gets the amount it expects.
+        response->receiveBody(clientSock, responseBody, bytesLeft);
+      } catch(std::string msg) {
+        // something bad happend
+        std::cerr << msg << std::endl;
+        // clean up
+        delete response;
+        delete segmentUrl;
+        //return false;
+       // clientSock.Close();
+        exit(1);
+      }
+    } while (bytesLeft > 0);
+  //  std::cout << "Content String size after: "<<fullContent.length() << std::endl;
+    response->setContent(fullContent);
+    
+ // }
+     
+    
+    if (!player->stream(fullContent))
     {
-      std::cerr << "Unable to properly download segment" << std::endl;
+      std::cerr << "Unable to properly play segment" << std::endl;
       delete response;
       delete playlistUrl;
       exit(1);             
@@ -348,6 +403,8 @@ std::cout << "Playlist has " << segments << " segments."
 
   // Clean up.
   delete player;
+  delete playlistUrl;
+  delete segmentUrl;
   return 0;
   // Stream the video segment (in the response body) to the player using
   // Player::stream
@@ -355,8 +412,7 @@ std::cout << "Playlist has " << segments << " segments."
   //  - Make sure Player::stream returns true. (What if a user closes the
   //    VideoPlayer early?)
 
-  delete playlistUrl;
-  delete segmentUrl;
+
   // Because the main thread (this thread) is downloading the video and is very
   // likely to end before the playback, which is handled by another thread.
   // If we let the main thread to terminate, the child thread (VideoPlayer)
