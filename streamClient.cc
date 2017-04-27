@@ -52,6 +52,7 @@ TCPSocket clientSock;
     exit(1);
   }
 
+
   playlistUrl = URL::parse(playlistUrlStr);
   if (!playlistUrl) {  // If URL parsing is failed
     std::cerr << "Unable to parse host address: " << playlistUrlStr
@@ -60,6 +61,7 @@ TCPSocket clientSock;
     exit(1);
   }            
 
+  std::cout << "Attempting connect to client socket..." << std::endl;
 
     try {
       clientSock.Connect(*playlistUrl);  // Connect to the target server.
@@ -86,6 +88,7 @@ TCPSocket clientSock;
   // respond the object.
   request->setHeaderField("If-Modified-Since", "0");
 
+  std::cout << "Attempting send the request to client socket..." << std::endl;
   try {  // send the request to the sock
     request->send(clientSock);
   } catch(std::string msg) {  // something is wrong, send failed
@@ -128,6 +131,7 @@ TCPSocket clientSock;
   // The client receives the response stream. Check if the data it has
   // contains the whole header.
   // read_header separates the header and data by finding the blank line.
+  std::cout << "Attempting to receive the response header " << std::endl;
   try {
     response->receiveHeader(clientSock, responseHeader, responseBody);
   } catch (std::string msg) {
@@ -151,6 +155,7 @@ TCPSocket clientSock;
 
   // get the response as a std::string
   // response->print(printBuffer);
+  std::cout << "Checking status codes..." << std::endl;
   int status_code = response->getStatusCode();
   if (status_code == 404)
   {
@@ -177,7 +182,7 @@ TCPSocket clientSock;
 
   // If the download succeeded, try to parse the response body as a Playlist 
   // object using Playlist::parse
-
+  std::cout << "Attempting to parse playlist object from responseBody" << std::endl;
   try {
     plist = Playlist::parse(responseBody);
 
@@ -203,11 +208,11 @@ TCPSocket clientSock;
   // Get a video player. Refer to simpleClient.cc for more information
 
   // Make a video player instance to play the video
-  VideoPlayer* player = VideoPlayer::create();
-  if (!player) {
-    std::cout << "Unable to create video player." << std::endl;
-    return 3;
-  }
+  // VideoPlayer* player = VideoPlayer::create();
+  // if (!player) {
+  //   std::cout << "Unable to create video player." << std::endl;
+  //   return 3;
+  // }
 
 
   // For each video segment in the Playlist object, download the video segment
@@ -215,14 +220,20 @@ TCPSocket clientSock;
   // Note:
   //  - Make sure each segment is downloaded successfully. If not, show some
   //    error messages and exit the program is fine.
-  int segments = plist->getNumSegments();
+  unsigned int segments = plist->getNumSegments();
   std::string segmentUrlStr;
-
+  std::string printBuffer;
   // loop through segments
-  for (int c = 0; c < segments; c++)
+std::cout << "Playlist has " << segments << " segments."
+ << std::endl;
+  for (unsigned int c = 0; c < plist->getNumSegments(); c++)
   {
+    responseBody = "";
+    responseHeader = "";
+    std::cout << "Fetching segment "<< c+1 << std::endl;
     segmentUrlStr = plist->getSegmentUrl(c);
     segmentUrl = URL::parse(segmentUrlStr);
+    std::cout << "Parsing segment URL: " << segmentUrlStr << std::endl;
     if (!segmentUrl) {  // If URL parsing is failed
       std::cerr << "Unable to parse segment host address: " << segmentUrlStr
                 << std::endl;
@@ -242,7 +253,7 @@ TCPSocket clientSock;
     // if the local object is the latest copy, the browser does not
     // respond the object.
     request->setHeaderField("If-Modified-Since", "0");
-
+    std::cout << "Sending segment request to client socket... " << std::endl;
     try {  // send the request to the sock
       request->send(clientSock);
     } catch(std::string msg) {  // something is wrong, send failed
@@ -252,11 +263,14 @@ TCPSocket clientSock;
 
   delete request;  // We do not need it anymore
   /***END OF SENDING REQUEST***/  
-  
+  std::cout << "Attempting to receive response header from downloaded segment..." << std::endl;
     try {
       response->receiveHeader(clientSock, responseHeader, responseBody);
     } catch (std::string msg) {
       std::cerr << msg << std::endl;
+      delete segmentUrl;
+      delete response;
+      exit(1);
     }
 
     // The HTTPResponse::parse construct a response object. and check if
@@ -271,12 +285,36 @@ TCPSocket clientSock;
       // clean up if there's something wrong
       delete response;
       delete playlistUrl;
+      delete segmentUrl;
       exit(1);
     }
 
+    response->print(printBuffer);
+
+    // output the response header
+    std::cout << std::endl << "Response header received" << std::endl;
+    std::cout << "=========================================================="
+              << std::endl;
+    std::cout << printBuffer.substr(0, printBuffer.length() - 4) << std::endl;
+    std::cout << "=========================================================="
+              << std::endl;
     // get the response as a std::string
     // response->print(printBuffer);
-    int status_code = response->getStatusCode();    
+    int status_code = response->getStatusCode();
+    if (status_code != 200)
+    {
+      std::cerr << "Unable to properly download segment" << std::endl;
+      delete response;
+      delete playlistUrl;
+      exit(1);      
+    }
+    // if (!player->stream(responseBody))
+    // {
+    //   std::cerr << "Unable to properly download segment" << std::endl;
+    //   delete response;
+    //   delete playlistUrl;
+    //   exit(1);             
+    // }
 
   }
         
